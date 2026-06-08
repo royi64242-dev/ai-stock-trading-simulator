@@ -198,6 +198,24 @@ def root():
     </html>
     """
 
+@app.get("/portfolio")
+def get_portfolio():
+    """Returns the current user balance and active stock holdings."""
+    return my_portfolio.get_summary(live_market)
+
+
+@app.post("/trade/buy")
+def buy_stock(request: TradeRequest):
+    """Executes a buy order at the current live market price."""
+    return my_portfolio.buy(request.stock_symbol.upper(), request.amount, live_market)
+
+
+@app.post("/trade/sell")
+def sell_stock(request: TradeRequest):
+    """Executes a sell order at the current live market price."""
+    return my_portfolio.sell(request.stock_symbol.upper(), request.amount, live_market)
+
+
 @app.get("/ai-advisor/{stock_symbol}")
 def get_ai_prediction(stock_symbol: str):
     """Trains a Linear Regression model dynamically and returns a Long/Short recommendation."""
