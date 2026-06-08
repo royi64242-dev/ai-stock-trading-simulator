@@ -197,3 +197,11 @@ def root():
     </body>
     </html>
     """
+
+@app.get("/ai-advisor/{stock_symbol}")
+def get_ai_prediction(stock_symbol: str):
+    """Trains a Linear Regression model dynamically and returns a Long/Short recommendation."""
+    result = live_market.get_ai_recommendation(stock_symbol.upper())
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
