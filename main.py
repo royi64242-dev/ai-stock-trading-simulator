@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi.responses import HTMLResponse
 
 
 # ==========================================
@@ -126,33 +127,73 @@ class TradeRequest(BaseModel):
     amount: int
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return {"message": "Welcome to the AI Trading API. Navigate to /docs for the interactive UI."}
+    return """
+    <!DOCTYPE html>
+    <html dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title>AI Trading Advisor</title>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: white; text-align: center; padding-top: 50px; }
+            .container { max-width: 500px; margin: 0 auto; padding: 20px; }
+            input { padding: 15px; font-size: 18px; border-radius: 8px; border: none; outline: none; width: 60%; margin-bottom: 20px; text-align: center;}
+            button { padding: 15px 30px; font-size: 18px; background-color: #00ffcc; color: black; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 65%;}
+            button:hover { background-color: #00ccaa; }
+            #result { margin-top: 30px; font-size: 18px; padding: 20px; background-color: #1e1e1e; border-radius: 10px; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+            .buy { color: #00ffcc; font-size: 24px; font-weight: bold; }
+            .sell { color: #ff4444; font-size: 24px; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>📈 AI Algo-Trading Advisor</h1>
+            <p style="color: #aaaaaa; margin-bottom: 30px;">Enter a stock symbol to get a live AI prediction based on Linear Regression</p>
 
+            <input type="text" id="stockInput" placeholder="e.g. NVDA, AAPL, TSLA" autocomplete="off" />
+            <br>
+            <button onclick="getPrediction()">Analyze Market</button>
 
-@app.get("/portfolio")
-def get_portfolio():
-    """Returns the current user balance and active stock holdings."""
-    return my_portfolio.get_summary(live_market)
+            <div id="result"></div>
+        </div>
 
+        <script>
+            async function getPrediction() {
+                const stock = document.getElementById('stockInput').value.toUpperCase();
+                const resultDiv = document.getElementById('result');
 
-@app.post("/trade/buy")
-def buy_stock(request: TradeRequest):
-    """Executes a buy order at the current live market price."""
-    return my_portfolio.buy(request.stock_symbol.upper(), request.amount, live_market)
+                if (!stock) return;
 
+                // Show loading state
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '⏳ Analyzing market data...';
 
-@app.post("/trade/sell")
-def sell_stock(request: TradeRequest):
-    """Executes a sell order at the current live market price."""
-    return my_portfolio.sell(request.stock_symbol.upper(), request.amount, live_market)
+                try {
+                    // Talk to your FastAPI backend
+                    const response = await fetch('/ai-advisor/' + stock);
+                    const data = await response.json();
 
+                    if (data.error) {
+                        resultDiv.innerHTML = '❌ ' + data.error;
+                    } else {
+                        // Format the clean output
+                        const isBuy = data.recommendation.includes('BUY');
+                        const colorClass = isBuy ? 'buy' : 'sell';
 
-@app.get("/ai-advisor/{stock_symbol}")
-def get_ai_prediction(stock_symbol: str):
-    """Trains a Linear Regression model dynamically and returns a Long/Short recommendation."""
-    result = live_market.get_ai_recommendation(stock_symbol.upper())
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    return result
+                        resultDiv.innerHTML = `
+                            <h2 style="margin-top: 0;">${data.ticker}</h2>
+                            <p>Current Price: <b>$${data.current_price}</b></p>
+                            <p>Predicted Price Tomorrow: <b>$${data.predicted_price_tomorrow}</b></p>
+                            <hr style="border: 1px solid #333; margin: 15px 0;">
+                            <div class="${colorClass}">${data.recommendation}</div>
+                        `;
+                    }
+                } catch (err) {
+                    resultDiv.innerHTML = '❌ Error connecting to the server.';
+                }
+            }
+        </script>
+    </body>
+    </html>
+    """
