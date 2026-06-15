@@ -6,57 +6,43 @@ from sklearn.linear_model import LinearRegression
 
 
 class Market:
-    """Manages real-time stock prices and dynamic AI market prediction."""
 
     def __init__(self):
-        # We no longer hardcode prices; we fetch them live when needed.
         self.cache = {}  # Simple cache to avoid spamming Yahoo Finance too often
 
     def get_live_price(self, stock_symbol: str) -> float:
-        """Fetches the current live price (or last close) from Yahoo Finance."""
         try:
             ticker = yf.Ticker(stock_symbol)
-            # 'fast_info' is much quicker than downloading historical data
             current_price = ticker.fast_info['lastPrice']
             return round(current_price, 2)
         except Exception:
             return None
 
     def get_ai_recommendation(self, stock_symbol: str):
-        """
-        Fetches 1-year historical data, trains a Linear Regression model dynamically,
-        and provides a Long (Buy) or Short (Sell) recommendation.
-        """
+
         print(f"\n[AI] Fetching historical data and analyzing {stock_symbol}...")
         ticker = yf.Ticker(stock_symbol)
 
-        # 1. Fetch 1 year of historical data
         hist = ticker.history(period="1y")
         if hist.empty:
             print(f"❌ AI Note: No historical data found for {stock_symbol}.")
             return
 
-        # 2. Get current live price
         current_price = self.get_live_price(stock_symbol)
         if current_price is None:
             print(f"❌ AI Note: Could not fetch live price for {stock_symbol}.")
             return
 
-        # 3. Prepare data for the model
-        # We use the index (Day 0, 1, 2...) as X, and Closing Price as y
         hist['Day'] = np.arange(len(hist))
         X = hist[['Day']].values
         y = hist['Close'].values
 
-        # 4. Train the Linear Regression Model
         model = LinearRegression()
         model.fit(X, y)
 
-        # 5. Predict tomorrow's price
         next_day_num = np.array([[len(hist)]])
         predicted_price = model.predict(next_day_num)[0]
 
-        # 6. Analyze the result
         margin_pct = ((predicted_price - current_price) / current_price) * 100
 
         print(f"\n=== AI Advisor Analysis for {stock_symbol} ===")
@@ -71,16 +57,13 @@ class Market:
 
 
 class Portfolio:
-    """Manages user balance, share holdings, and portfolio value tracking."""
 
     def __init__(self, initial_balance):
         self.balance = initial_balance
         self.holdings = {}
-        # We track actions (buy/sell) to plot performance later
         self.transaction_history = []
 
     def buy(self, stock: str, amount: int, market: Market):
-        """Handles purchasing logic using live market prices."""
         current_price = market.get_live_price(stock)
 
         if current_price is None:
@@ -97,7 +80,6 @@ class Portfolio:
             print(f"✅ Successfully bought {amount} shares of {stock} at ${current_price:.2f} each!")
 
     def sell(self, stock: str, amount: int, market: Market):
-        """Handles selling logic using live market prices."""
         if stock in self.holdings and self.holdings[stock] >= amount:
             current_price = market.get_live_price(stock)
 
@@ -118,7 +100,6 @@ class Portfolio:
             print("❌ Transaction declined: You don't own enough shares of this stock.")
 
     def get_net_worth(self, market: Market) -> float:
-        """Calculates total value of cash + current value of all active holdings."""
         total_stocks_value = 0
         for stock, amount in self.holdings.items():
             price = market.get_live_price(stock)
@@ -127,7 +108,6 @@ class Portfolio:
         return self.balance + total_stocks_value
 
     def view(self, market: Market):
-        """Displays user's assets and current bank balance based on live data."""
         print("\n--- Your Portfolio ---")
         if not self.holdings:
             print("You don't own any shares yet.")
@@ -149,7 +129,6 @@ class Portfolio:
         print(f"Total Net Worth:    ${self.balance + total_stocks_value:.2f}")
 
     def plot_allocation(self, market: Market):
-        """Generates a Matplotlib Pie Chart showing current portfolio allocation."""
         labels = ['Free Cash']
         sizes = [self.balance]
 
@@ -177,7 +156,6 @@ class Portfolio:
         plt.show()
 
 
-# --- Main Game Loop ---
 if __name__ == "__main__":
     live_market = Market()
     my_portfolio = Portfolio(10000.0)
@@ -187,8 +165,6 @@ if __name__ == "__main__":
     print("==================================================")
 
     while True:
-        # Note: Calculating net worth on every loop takes a few seconds
-        # because it pings Yahoo Finance for every stock you own.
         print("\n--- Main Menu ---")
         print("1 - Search & Buy Stock")
         print("2 - Sell Stock")
