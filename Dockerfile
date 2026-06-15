@@ -1,18 +1,21 @@
-# 1. Use an official lightweight Python image as the base
 FROM python:3.10-slim
 
-# 2. Set the working directory inside the container
 WORKDIR /app
 
-# 3. Copy the requirements file and install dependencies
+# התקנת כלים בסיסיים של מערכת ההפעלה שדרושים לחלק מספריות הנתונים
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# העתקה והתקנה של דרישות הקוד
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. Copy the rest of the application code into the container
+# העתקת כל שאר קבצי הפרויקט (כולל תיקיית static)
 COPY . .
 
-# 5. Expose the port that FastAPI will run on
+# חשיפת הפורט המתאים לעבודה בענן
 EXPOSE 8000
 
-# 6. Command to run the FastAPI application using Uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# פקודת ההרצה של השרת באמצעות uvicorn
+CMD ["uvicorn", "server.py:app", "--host", "0.0.0.0", "--port", "8000"]
