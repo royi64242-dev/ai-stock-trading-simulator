@@ -3,10 +3,10 @@ import sys
 # מייבאים את הפונקציות שבנינו מתוך הקבצים הנפרדים שלהן
 from crypto_api import fetch_crypto_data
 from stock_api import fetch_stock_data
+from ai_model import analyze_asset
 
 
 # בעתיד נשחרר את השורה הזו מהערה כשנסיים לבנות את המודל:
-# from ai_model import analyze_asset
 
 def main():
     print("==========================================")
@@ -48,8 +48,8 @@ def main():
     print(df.tail())
 
     # 5. תחנת הסיום - המסירה למוח המלאכותי
-    # print("\n🧠 Sending data to AI Engine...")
-    # analyze_asset(df, symbol)
+    print("\n🧠 Sending data to AI Engine...")
+    analyze_asset(df, symbol)
 
 
 if __name__ == "__main__":
