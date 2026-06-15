@@ -1,10 +1,176 @@
 <!DOCTYPE html>
-<html lang="en">
+<html dir="ltr">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="utf-8">
+    <title>AI Trading Simulator (XGBoost Edition)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: white; text-align: center; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .card { background-color: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: left; }
+        h1, h2 { text-align: center; color: #00ffcc; margin-top: 0; }
+
+        /* Input Row Styling */
+        .input-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        select, input { padding: 10px; font-size: 16px; border-radius: 6px; border: none; outline: none; background: #333; color: white; width: 100%; }
+        select { cursor: pointer; }
+
+        button { padding: 12px 20px; font-size: 16px; background-color: #00ffcc; color: black; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s;}
+        button:hover { background-color: #00ccaa; }
+        .sell-btn { background-color: #ff4444; color: white; }
+        .sell-btn:hover { background-color: #cc0000; }
+
+        .result-box { margin-top: 15px; padding: 15px; background-color: #2a2a2a; border-radius: 8px; font-size: 16px; display: none; }
+
+        /* New styling for prediction cards */
+        .prediction-horizon { background-color: #333; padding: 10px; margin-top: 10px; border-radius: 6px; border-left: 4px solid #00ffcc; }
+        .prediction-horizon.sell { border-left-color: #ff4444; }
+        .portfolio-item { display: flex; justify-content: space-between; border-bottom: 1px solid #444; padding: 8px 0; }
+    </style>
 </head>
 <body>
-$END$
+    <div class="container">
+        <h1>📊 AI Algo-Trading (XGBoost)</h1>
+
+        <div class="card">
+            <h2>1. Ask AI Advisor</h2>
+            <div class="input-row">
+                <select id="assetType" style="flex: 1;">
+                    <option value="crypto">Crypto (Binance)</option>
+                    <option value="stock">Stock/ETF (Yahoo)</option>
+                </select>
+                <input type="text" id="aiTicker" placeholder="Symbol (e.g. BTC, AAPL)" autocomplete="off" style="flex: 2; text-align: center;" />
+            </div>
+            <button onclick="getPrediction()">Analyze Prediction</button>
+            <div id="aiResult" class="result-box"></div>
+        </div>
+
+        <div class="card">
+            <h2>2. Trade Simulator</h2>
+            <div class="input-row">
+                <input type="text" id="tradeTicker" placeholder="Symbol (e.g. AAPL)" autocomplete="off" />
+                <input type="number" id="tradeQty" placeholder="Quantity" min="1" />
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="executeTrade('buy')">Buy Asset</button>
+                <button class="sell-btn" onclick="executeTrade('sell')">Sell Asset</button>
+            </div>
+            <div id="tradeResult" class="result-box" style="text-align: center;"></div>
+        </div>
+
+        <div class="card">
+            <h2>3. Portfolio & Net Worth</h2>
+            <button onclick="viewPortfolio()" style="background-color: #4a90e2; color: white;">Refresh Portfolio Data</button>
+            <div id="portfolioResult" class="result-box"></div>
+        </div>
+    </div>
+
+    <script>
+        // 1. Updated AI Prediction Fetcher
+        async function getPrediction() {
+            const assetType = document.getElementById('assetType').value;
+            const stock = document.getElementById('aiTicker').value.toUpperCase();
+            const resDiv = document.getElementById('aiResult');
+
+            if (!stock) return;
+
+            resDiv.style.display = 'block';
+            resDiv.innerHTML = '<div style="text-align:center;">⏳ Extracting data and running XGBoost model...</div>';
+
+            try {
+                // New API route that includes the asset type
+                const response = await fetch(`/api/ai-advisor/${assetType}/${stock}`);
+                const data = await response.json();
+
+                if (!response.ok || data.detail) {
+                    resDiv.innerHTML = `❌ Server Error: ${data.detail || 'Endpoint missing'}`; return;
+                }
+                if (data.error) {
+                    resDiv.innerHTML = `❌ ${data.error}`; return;
+                }
+
+                // Building the beautiful results HTML
+                let html = `<h3 style="text-align:center; margin-bottom:5px;">${data.ticker}: $${data.current_price.toLocaleString()}</h3>`;
+
+                // Loop through the horizons (1 Month, 6 Months, etc.)
+                data.predictions.forEach(pred => {
+                    const isBuy = pred.recommendation.includes('BUY');
+                    const color = isBuy ? '#00ffcc' : '#ff4444';
+                    const cssClass = isBuy ? '' : 'sell';
+
+                    html += `
+                    <div class="prediction-horizon ${cssClass}">
+                        <strong>Timeline: ${pred.timeline}</strong><br>
+                        Predicted Price: $${pred.predicted_price.toLocaleString()}
+                        (<span style="color: ${color}">${pred.change_pct > 0 ? '+' : ''}${pred.change_pct}%</span>)<br>
+                        <span style="color: ${color}; font-weight: bold; font-size: 18px;">${pred.recommendation}</span>
+                    </div>`;
+                });
+
+                resDiv.innerHTML = html;
+
+            } catch (e) { resDiv.innerHTML = '❌ Connection Error'; }
+        }
+
+        // 2. Trade Execution (Remains similar, just point to /api routes)
+        async function executeTrade(action) {
+            const ticker = document.getElementById('tradeTicker').value.toUpperCase();
+            const qty = parseInt(document.getElementById('tradeQty').value);
+            const resDiv = document.getElementById('tradeResult');
+            if (!ticker || isNaN(qty) || qty <= 0) {
+                resDiv.style.display = 'block'; resDiv.innerHTML = '⚠️ Invalid input'; return;
+            }
+
+            resDiv.style.display = 'block'; resDiv.innerHTML = '⏳ Executing trade...';
+
+            try {
+                const response = await fetch('/api/trade/' + action, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker: ticker, quantity: qty })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    resDiv.innerHTML = `<span style="color: #ff4444;">❌ ${data.error}</span>`;
+                } else {
+                    resDiv.innerHTML = `<span style="color: #00ffcc;">✅ ${data.message}</span>`;
+                    viewPortfolio();
+                }
+            } catch (e) { resDiv.innerHTML = '❌ Connection Error'; }
+        }
+
+        // 3. Portfolio Viewer
+        async function viewPortfolio() {
+            const resDiv = document.getElementById('portfolioResult');
+            resDiv.style.display = 'block'; resDiv.innerHTML = '<div style="text-align:center;">⏳ Fetching live prices...</div>';
+
+            try {
+                const response = await fetch('/api/portfolio');
+                const data = await response.json();
+
+                let html = `<h3>Total Net Worth: <span style="color: #00ffcc;">$${data.net_worth.toLocaleString()}</span></h3>`;
+                html += `<p>Cash Balance: $${data.cash.toLocaleString()}</p><hr style="border:1px solid #444;">`;
+
+                if (Object.keys(data.holdings).length === 0) {
+                    html += `<p style="text-align:center; color:#888;">Portfolio is empty.</p>`;
+                } else {
+                    for (const [ticker, info] of Object.entries(data.holdings)) {
+                        const percent = ((info.total_value / data.net_worth) * 100).toFixed(1);
+                        html += `
+                        <div class="portfolio-item">
+                            <div><b>${ticker}</b> (${info.quantity} shares)</div>
+                            <div>$${info.total_value.toLocaleString()}</div>
+                        </div>
+                        <div style="width: 100%; background: #444; height: 6px; margin-bottom: 10px; border-radius: 3px;">
+                            <div style="width: ${percent}%; background: #00ffcc; height: 100%; border-radius: 3px;"></div>
+                        </div>
+                        <small style="color: #aaa;">Current Price: $${info.current_price} | ${percent}% of portfolio</small>
+                        <br><br>`;
+                    }
+                }
+                resDiv.innerHTML = html;
+            } catch (e) { resDiv.innerHTML = '❌ Connection Error'; }
+        }
+    </script>
 </body>
 </html>
