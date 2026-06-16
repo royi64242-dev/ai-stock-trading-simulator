@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI Trading Engine | Pro</title>
     <style>
-        /* הגדרת פלטת הצבעים למצב יום ולילה */
         :root {
             --bg-color: #0d1117;
             --card-bg: #161b22;
@@ -36,7 +35,6 @@
             --shadow: rgba(0, 0, 0, 0.1);
         }
 
-        /* עיצוב בסיסי מותאם לנייד */
         * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
@@ -87,7 +85,6 @@
             transition: 0.3s;
         }
 
-        /* התאמת השדות למסכים קטנים (flex-wrap) */
         .input-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 15px; }
         select, input {
             padding: 14px;
@@ -104,7 +101,6 @@
         select:focus, input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3); }
         select { cursor: pointer; }
 
-        /* כפתורים מוגדלים שנוחים ללחיצה באצבע */
         button {
             padding: 14px 20px;
             font-size: 1rem;
@@ -129,8 +125,6 @@
         .prediction-horizon { background-color: var(--card-bg); padding: 15px; margin-top: 10px; border-radius: 8px; border-left: 5px solid var(--success); border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);}
         .prediction-horizon.sell { border-left-color: var(--danger); }
         .portfolio-item { display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding: 12px 0; }
-
-        .auth-section { display: flex; flex-direction: column; gap: 12px; }
     </style>
 </head>
 <body>
@@ -140,18 +134,6 @@
     </div>
 
     <div class="container">
-        <div class="card" id="authCard">
-            <h2>Investor Login</h2>
-            <div class="auth-section">
-                <input type="email" id="userEmail" placeholder="Email Address" autocomplete="off" />
-                <input type="password" id="userPassword" placeholder="Password" autocomplete="off" />
-                <div class="input-row">
-                    <button class="auth-btn" onclick="alert('Backend connection pending...')">Secure Login</button>
-                    <button class="secondary-btn" onclick="alert('Registration module pending...')">Create Account</button>
-                </div>
-            </div>
-        </div>
-
         <div class="card">
             <h2>1. AI Market Analysis</h2>
             <div class="input-row">
@@ -186,7 +168,7 @@
     </div>
 
     <script>
-        // --- מערכת עיצוב (Dark/Light Mode) ---
+        // מערכת ערכות עיצוב (Dark/Light Mode)
         function toggleTheme() {
             const html = document.documentElement;
             const currentTheme = html.getAttribute('data-theme');
@@ -196,14 +178,15 @@
             localStorage.setItem('ui-theme', newTheme);
         }
 
-        // טעינת העיצוב השמור כשהעמוד עולה
         document.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('ui-theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
             document.getElementById('themeBtn').innerText = savedTheme === 'light' ? '☀️' : '🌙';
+            // טעינה ראשונית של התיק שקיים בשרת
+            viewPortfolio();
         });
 
-        // --- לוגיקת API ---
+        // לוגיקת API לחיזוי
         async function getPrediction() {
             const assetType = document.getElementById('assetType').value;
             const stock = document.getElementById('aiTicker').value.toUpperCase();
@@ -246,6 +229,7 @@
             } catch (e) { resDiv.innerHTML = '<span style="color: var(--danger);">❌ Network Connection Error</span>'; }
         }
 
+        // ביצוע עסקה
         async function executeTrade(action) {
             const ticker = document.getElementById('tradeTicker').value.toUpperCase();
             const qty = parseInt(document.getElementById('tradeQty').value);
@@ -273,37 +257,6 @@
             } catch (e) { resDiv.innerHTML = '<span style="color: var(--danger);">❌ Order routing failed</span>'; }
         }
 
+        // הצגת התיק
         async function viewPortfolio() {
-            const resDiv = document.getElementById('portfolioResult');
-            resDiv.style.display = 'block'; resDiv.innerHTML = '<div style="text-align:center; color: var(--text-muted);">⏳ Syncing with exchange APIs...</div>';
-
-            try {
-                const response = await fetch('/api/portfolio');
-                const data = await response.json();
-
-                let html = `<h3>Net Asset Value: <span style="color: var(--primary);">$${data.net_worth.toLocaleString()}</span></h3>`;
-                html += `<p style="color: var(--text-muted);">Available Liquidity: $${data.cash.toLocaleString()}</p><hr style="border:0; border-top: 1px solid var(--border); margin: 15px 0;">`;
-
-                if (Object.keys(data.holdings).length === 0) {
-                    html += `<p style="text-align:center; color:var(--text-muted);">No active positions.</p>`;
-                } else {
-                    for (const [ticker, info] of Object.entries(data.holdings)) {
-                        const percent = ((info.total_value / data.net_worth) * 100).toFixed(1);
-                        html += `
-                        <div class="portfolio-item">
-                            <div><b>${ticker}</b> <span style="color: var(--text-muted);">(${info.quantity} units)</span></div>
-                            <div style="color: var(--success); font-weight: 500;">$${info.total_value.toLocaleString()}</div>
-                        </div>
-                        <div style="width: 100%; background: var(--border); height: 6px; margin-bottom: 8px; border-radius: 3px; margin-top: 5px;">
-                            <div style="width: ${percent}%; background: var(--primary); height: 100%; border-radius: 3px;"></div>
-                        </div>
-                        <small style="color: var(--text-muted);">Market Price: $${info.current_price} | Portfolio Weight: ${percent}%</small>
-                        <br><br>`;
-                    }
-                }
-                resDiv.innerHTML = html;
-            } catch (e) { resDiv.innerHTML = '<span style="color: var(--danger);">❌ Sync failed</span>'; }
-        }
-    </script>
-</body>
-</html>
+            const resDiv
